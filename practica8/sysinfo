@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# sysinfo - Un script que informa del estado del sistema
+TITLE="Información de mi sistema"
+RIGHT_NOW=$(date +"%x %r%Z")
+TIME_STAMP="Actualizada el $RIGHT_NOW por $USER"
+
+##### Estilos
+
+TEXT_BOLD=$(tput bold)
+TEXT_GREEN=$(tput setaf 2)
+TEXT_RESET=$(tput sgr0)
+TEXT_ULINE=$(tput sgr 0 1)
+
+##### Funciones
+system_info() {
+  echo "${TEXT_ULINE}Versión del sistema${TEXT_RESET}"
+  echo
+  uname -a
+  echo "----------------------------------------------------------------------------"
+}
+
+show_uptime() {
+  echo "${TEXT_ULINE}Tiempo de encendido del sistema${TEXT_RESET}"
+  echo
+  uptime
+  echo "----------------------------------------------------------------------------"
+}
+
+drive_space() {
+  echo "${TEXT_ULINE}Espacio ocupado en disco${TEXT_RESET}"
+  echo
+  df -BM
+  echo "----------------------------------------------------------------------------"
+}
+
+home_space() {
+  echo "${TEXT_ULINE}Espacio usado en disco e información de usuarios${TEXT_RESET}"
+  echo
+  if [ $USER = root ]; then
+    echo "${TEXT_BOLD}ESPACIO USADO${TEXT_RESET} en /home"
+    echo
+    du -s -BM /home/* | sort -nr
+  else
+    echo "${TEXT_BOLD}ESPACIO USADO${TEXT_RESET} en /home/$USER"
+    echo "  $(du -s -BM /home/$USER)"
+  fi
+  echo
+  echo "  ${TEXT_ULINE}USUARIOS${TEXT_RESET}"
+  if [ $USER != $LOGNAME ]; then
+    echo "  El usuario original no coincidente con el usuario actual"
+    echo "  El ${TEXT_BOLD}usuario original${TEXT_RESET} es ${TEXT_BOLD}$LOGNAME${TEXT_RESET}"
+    echo "  El ${TEXT_BOLD}usuario actual${TEXT_RESET} es ${TEXT_BOLD}$USER${TEXT_RESET}"
+  else
+    echo "  El usuario original coincide con el usuario actual"
+    echo "  El ${TEXT_BOLD}usuario original${TEXT_RESET} es ${TEXT_BOLD}$LOGNAME${TEXT_RESET}"
+  fi
+  echo
+  echo "  ${TEXT_ULINE}NUMERO DE PROCESOS${TEXT_RESET}"
+  echo "  ${TEXT_BOLD}Número de procesos${TEXT_RESET} que se ejecutan hasta el momento actual $(ps --no-headers | wc -l)"
+  echo "----------------------------------------------------------------------------"
+}
+
+##### Programa principal
+clear
+cat <<_EOF_
+=== $TEXT_BOLD $TITLE $HOSTNAME $TEXT_RESET ===
+
+$(system_info)
+$(show_uptime)
+$(drive_space)
+$(home_space)
+
+  $TEXT_GREEN $TIME_STAMP $TEXT_RESET
+_EOF_
