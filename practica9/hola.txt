@@ -1,0 +1,49 @@
+write_page iniciada
+    === [1m Información de mi sistema Xavispire (B[m ===
+
+  (B[0;4mVersión del sistema(B[m
+
+Linux Xavispire 4.15.0-38-generic #41-Ubuntu SMP Wed Oct 10 10:59:38 UTC 2018 x86_64 x86_64 x86_64 GNU/Linux
+----------------------------------------------------------------------------
+  (B[0;4mTiempo de encendido del sistema(B[m
+
+ 22:27:23 up  3:29,  1 user,  load average: 0,15, 0,32, 0,60
+----------------------------------------------------------------------------
+  (B[0;4mEspacio ocupado en disco(B[m
+
+S.ficheros     bloques de 1M Usados Disponibles Uso% Montado en
+udev                   3919M     0M       3919M   0% /dev
+tmpfs                   790M     2M        789M   1% /run
+/dev/sda5            124058M 27361M      90353M  24% /
+tmpfs                  3950M    36M       3914M   1% /dev/shm
+tmpfs                     5M     1M          5M   1% /run/lock
+tmpfs                  3950M     0M       3950M   0% /sys/fs/cgroup
+/dev/loop0              142M   142M          0M 100% /snap/chromium/509
+/dev/loop1              174M   174M          0M 100% /snap/spotify/24
+/dev/loop3              174M   174M          0M 100% /snap/spotify/26
+/dev/loop4               89M    89M          0M 100% /snap/core/5897
+/dev/loop5               35M    35M          0M 100% /snap/gtk-common-themes/808
+/dev/loop6               35M    35M          0M 100% /snap/gtk-common-themes/818
+/dev/loop7               88M    88M          0M 100% /snap/core/5742
+/dev/loop2              173M   173M          0M 100% /snap/spotify/21
+/dev/loop8               43M    43M          0M 100% /snap/gtk-common-themes/701
+/dev/sda2                95M    31M         65M  32% /boot/efi
+tmpfs                   790M     1M        790M   1% /run/user/1000
+----------------------------------------------------------------------------
+  (B[0;4mEspacio usado en disco e información de usuarios(B[m
+
+[1mESPACIO USADO(B[m en /home/xavyan
+  14260M	/home/xavyan
+
+  (B[0;4mUSUARIOS(B[m
+  El usuario original coincide con el usuario actual
+  El [1musuario original(B[m es [1mxavyan(B[m
+
+  (B[0;4mNUMERO DE PROCESOS(B[m
+  [1mNúmero de procesos(B[m que se ejecutan hasta el momento actual: 14
+----------------------------------------------------------------------------
+  [1mNumero de procesos del usuario(B[m: 69
+----------------------------------------------------------------------------
+
+  [32m Actualizada el 25/11/18 10:27:23 WET por xavyan (B[m
+

@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# sysinfo - Un script que informa del estado del sistema
+# sysinfo_page - Un script que informa del estado del sistema (actualizado para la practica de la semana 9)
+
+# Declaracion de variables
+filename=~/system_info.txt
+interactive=0
 TITLE="Información de mi sistema"
 RIGHT_NOW=$(date +"%x %r%Z")
 TIME_STAMP="Actualizada el $RIGHT_NOW por $USER"
@@ -66,19 +70,88 @@ home_space() {
   echo "----------------------------------------------------------------------------"
 }
 
-##### Programa principal
-clear
-cat <<_EOF_
-=== $TEXT_BOLD $TITLE $HOSTNAME $TEXT_RESET ===
+usage() {
+  echo "usage: sysinfo [-f file] [-i] [-h]"
+}
 
-$(system_info)
-$(show_uptime)
-$(drive_space)
-$(home_space)
-$(user_process)
+write_page() {
+  echo "write_page iniciada"
+cat << _EOF_
+    === $TEXT_BOLD $TITLE $HOSTNAME $TEXT_RESET ===
+
+  $(system_info)
+  $(show_uptime)
+  $(drive_space)
+  $(home_space)
+  $(user_process)
 
   $TEXT_GREEN $TIME_STAMP $TEXT_RESET
 _EOF_
+
 echo
+}
+
+##### Programa principal
+
+echo "filename inicial = " $filename
+
+# PROCESAMIENTO DE LA LINEA DE COMANDOS
+while [ "$1" != "" ]; do
+  case $1 in
+    -f | --file )
+      shift
+      filename=$1
+      echo "Opcion -f encontrada"
+      ;;
+    -i | --interactive )
+      echo "Opcion -i encontrada"
+      interactive=1
+      ;;
+    -h | --help )
+      echo "Opcion -h encontrada"
+      usage
+      exit
+      ;;
+    * )
+      echo "Opcion no registrada"
+      usage
+      exit 1
+  esac
+  shift
+done
+echo "realizado el procesamiento de la linea de comandos..."
+
+if [ $interactive -eq 1 ]; then
+  echo -n "Indica el nombre del fichero de salida (por defecto es $filename) >> "
+  read text
+  echo "El fichero indicado es $text..."
+  if [ ! -d $text ]; then
+    if [ -e $text ]; then
+      echo -n "El fichero ya existe, desea sobrescribirlo? (S/n): "
+      read text2
+      case $text2 in
+        S | s )
+          echo "Eleccion hecha con si."
+          filename=$text
+          ;;
+        N | n )
+          echo "Eleccion hecha con no."
+          ;;
+        * )
+          echo "Error. Se debe especificar lo puesto entre paréntesis. Script abortado."
+          exit 1
+      esac
+    else
+      filename=$text
+    fi
+  else
+    echo "Error. No debe ser un directorio."
+    exit 1
+  fi
+fi
+
+echo "Valor de filename: "$filename
+
+#write_page > $filename
 
 exit 0
