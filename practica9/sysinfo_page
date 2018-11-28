@@ -5,6 +5,10 @@
 # Declaracion de variables
 filename=~/system_info.txt
 interactive=0
+show=0
+filter=
+sysUser=0
+
 TITLE="Información de mi sistema"
 RIGHT_NOW=$(date +"%x %r%Z")
 TIME_STAMP="Actualizada el $RIGHT_NOW por $USER"
@@ -34,12 +38,24 @@ show_uptime() {
 drive_space() {
   echo "${TEXT_ULINE}Espacio ocupado en disco${TEXT_RESET}"
   echo
-  df -BM
+  if [ -n "$1" ]; then
+    echo "${TEXT_BOLD}Filtrado con ${TEXT_ULINE}$1${TEXT_RESET}"
+    echo
+  fi
+  temp=$(df | grep "$1" | wc -l) #Aqui $temp cuenta el numero de procesos que hay que mostrar (incluyendo la cabecera )
+  if [ $temp -ne 0 ]; then
+    echo -n ${TEXT_BOLD}
+    df | head -n1
+    echo -n ${TEXT_RESET}
+    df -BM | tail -n$(($(df | wc -l) - 1)) | grep "$1"
+  fi
+  temp= #Reiniciamos el valor de $temp
   echo "----------------------------------------------------------------------------"
 }
 
 user_process() {
-  echo "${TEXT_BOLD}Numero de procesos del usuario${TEXT_RESET}: $(ps -u $USER --no-headers | wc -l)"
+  echo -n "${TEXT_BOLD}Numero de procesos del usuario${TEXT_RESET}:"
+  ps -u $USER --no-headers | wc -l
   echo "----------------------------------------------------------------------------"
 }
 
@@ -71,19 +87,18 @@ home_space() {
 }
 
 usage() {
-  echo "usage: sysinfo [-f file] [-i] [-h]"
+  echo "usage: sysinfo [-f file] [-i] [-h] [-p filter] [-s]"
 }
 
 write_page() {
-  echo "write_page iniciada"
 cat << _EOF_
     === $TEXT_BOLD $TITLE $HOSTNAME $TEXT_RESET ===
-
   $(system_info)
   $(show_uptime)
-  $(drive_space)
+  $(drive_space $filter)
   $(home_space)
   $(user_process)
+  $(demon_process)
 
   $TEXT_GREEN $TIME_STAMP $TEXT_RESET
 _EOF_
@@ -91,38 +106,56 @@ _EOF_
 echo
 }
 
-##### Programa principal
+demon_process() {
+    echo -e "${TEXT_ULINE}Procesos demonio${TEXT_RESET}\n"
+    ps u | head -n1
+    for i in $(ps -A --no-headers | sed 's/^ *//' | cut -d " " -f1); do
+      sysUser=0
+      for j in $(echo $(ls $HOME/../) root); do
+        if [ "$(ps u --pid $i --no-headers | cut -d " " -f1)" = "$j" ]; then
+          sysUser=1
+          break
+        fi
+      done
+      if [ $sysUser -eq 0 ]; then
+        ps u --pid $i --no-headers
+      fi
+    done
+}
 
-echo "filename inicial = " $filename
+##### Programa principal
 
 # PROCESAMIENTO DE LA LINEA DE COMANDOS
 while [ "$1" != "" ]; do
   case $1 in
-    -f | --file )
+    -f | --file ) # indicar un fichero
       shift
       filename=$1
-      echo "Opcion -f encontrada"
       ;;
-    -i | --interactive )
-      echo "Opcion -i encontrada"
+    -i | --interactive ) # Indicar el fichero durante la ejecucion
       interactive=1
       ;;
-    -h | --help )
-      echo "Opcion -h encontrada"
+    -p | --partitions-filter ) #Filtrar la informacion del espacio en disco
+      shift
+      filter=$1
+      ;;
+    -s | --show ) # Mostrar por pantalla la informacion
+      show=1
+      ;;
+    -h | --help ) # Mostrar la ayuda
       usage
-      exit
+      exit 0
       ;;
     * )
-      echo "Opcion no registrada"
       usage
       exit 1
   esac
   shift
 done
-echo "realizado el procesamiento de la linea de comandos..."
 
+# Si es interactivo (-i) entonces preguntamos al usario por el fichero
 if [ $interactive -eq 1 ]; then
-  echo -n "Indica el nombre del fichero de salida (por defecto es $filename) >> "
+  echo -n "Indica el nombre del fichero de salida (actualmente es $filename) >> "
   read text
   echo "El fichero indicado es $text..."
   if [ ! -d $text ]; then
@@ -131,27 +164,34 @@ if [ $interactive -eq 1 ]; then
       read text2
       case $text2 in
         S | s )
-          echo "Eleccion hecha con si."
           filename=$text
           ;;
         N | n )
-          echo "Eleccion hecha con no."
+          echo "Operación abortada..."
+          exit 0
           ;;
         * )
-          echo "Error. Se debe especificar lo puesto entre paréntesis. Script abortado."
+          echo "Error. Se debe especificar lo puesto entre paréntesis. Script abortado." 1>&2
           exit 1
       esac
     else
       filename=$text
     fi
   else
-    echo "Error. No debe ser un directorio."
+    echo "Error. No debe ser un directorio." 1>&2
     exit 1
   fi
 fi
 
-echo "Valor de filename: "$filename
+echo "Cargando información..."
 
-#write_page > $filename
+if [ $show -eq 1 ]; then
+  write_page
+fi
+
+write_page > $filename
+
+echo "Información guardada en $filename."
+echo
 
 exit 0

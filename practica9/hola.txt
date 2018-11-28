@@ -1,49 +1,65 @@
 write_page iniciada
     === [1m Información de mi sistema Xavispire (B[m ===
-
   (B[0;4mVersión del sistema(B[m
 
 Linux Xavispire 4.15.0-38-generic #41-Ubuntu SMP Wed Oct 10 10:59:38 UTC 2018 x86_64 x86_64 x86_64 GNU/Linux
 ----------------------------------------------------------------------------
   (B[0;4mTiempo de encendido del sistema(B[m
 
- 22:27:23 up  3:29,  1 user,  load average: 0,15, 0,32, 0,60
+ 01:11:53 up  1:32,  1 user,  load average: 0,49, 0,71, 0,76
 ----------------------------------------------------------------------------
   (B[0;4mEspacio ocupado en disco(B[m
 
-S.ficheros     bloques de 1M Usados Disponibles Uso% Montado en
-udev                   3919M     0M       3919M   0% /dev
-tmpfs                   790M     2M        789M   1% /run
-/dev/sda5            124058M 27361M      90353M  24% /
-tmpfs                  3950M    36M       3914M   1% /dev/shm
+[1mFiltrado con (B[0;4msd*(B[m
+
+[1mS.ficheros     bloques de 1K   Usados Disponibles Uso% Montado en
+(B[mtmpfs                   790M     2M        789M   1% /run
+/dev/sda5            124058M 22600M      95115M  20% /
+tmpfs                  3950M    57M       3893M   2% /dev/shm
 tmpfs                     5M     1M          5M   1% /run/lock
 tmpfs                  3950M     0M       3950M   0% /sys/fs/cgroup
-/dev/loop0              142M   142M          0M 100% /snap/chromium/509
-/dev/loop1              174M   174M          0M 100% /snap/spotify/24
-/dev/loop3              174M   174M          0M 100% /snap/spotify/26
-/dev/loop4               89M    89M          0M 100% /snap/core/5897
-/dev/loop5               35M    35M          0M 100% /snap/gtk-common-themes/808
-/dev/loop6               35M    35M          0M 100% /snap/gtk-common-themes/818
-/dev/loop7               88M    88M          0M 100% /snap/core/5742
-/dev/loop2              173M   173M          0M 100% /snap/spotify/21
-/dev/loop8               43M    43M          0M 100% /snap/gtk-common-themes/701
+/dev/loop1              142M   142M          0M 100% /snap/chromium/509
+/dev/loop2              174M   174M          0M 100% /snap/spotify/26
+/dev/loop3               89M    89M          0M 100% /snap/core/5897
+/dev/loop4              174M   174M          0M 100% /snap/spotify/24
+/dev/loop7               35M    35M          0M 100% /snap/gtk-common-themes/808
+/dev/loop8               88M    88M          0M 100% /snap/core/5742
+/dev/loop0              143M   143M          0M 100% /snap/chromium/516
+/dev/loop10              35M    35M          0M 100% /snap/gtk-common-themes/818
+/dev/loop6              173M   173M          0M 100% /snap/spotify/21
+/dev/loop5               46M    46M          0M 100% /snap/core18/442
+/dev/loop9               43M    43M          0M 100% /snap/gtk-common-themes/701
 /dev/sda2                95M    31M         65M  32% /boot/efi
 tmpfs                   790M     1M        790M   1% /run/user/1000
 ----------------------------------------------------------------------------
   (B[0;4mEspacio usado en disco e información de usuarios(B[m
 
 [1mESPACIO USADO(B[m en /home/xavyan
-  14260M	/home/xavyan
+  8992M	/home/xavyan
 
   (B[0;4mUSUARIOS(B[m
   El usuario original coincide con el usuario actual
   El [1musuario original(B[m es [1mxavyan(B[m
 
   (B[0;4mNUMERO DE PROCESOS(B[m
-  [1mNúmero de procesos(B[m que se ejecutan hasta el momento actual: 14
+  [1mNúmero de procesos(B[m que se ejecutan hasta el momento actual: 13
 ----------------------------------------------------------------------------
-  [1mNumero de procesos del usuario(B[m: 69
+  [1mNumero de procesos del usuario(B[m:79
 ----------------------------------------------------------------------------
+  (B[0;4mProcesos demonio(B[m
 
-  [32m Actualizada el 25/11/18 10:27:23 WET por xavyan (B[m
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+systemd+   798  0.0  0.0  71364  6884 ?        Ss   nov27   0:00 /lib/systemd/systemd-resolved
+systemd+   800  0.0  0.0 143976  3340 ?        Ssl  nov27   0:00 /lib/systemd/systemd-timesyncd
+syslog     804  0.0  0.0 263036  4824 ?        Ssl  nov27   0:03 /usr/sbin/rsyslogd -n
+message+   805  0.1  0.0  51504  5964 ?        Rs   nov27   0:06 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+avahi      825  0.0  0.0  47264  3356 ?        Ss   nov27   0:01 avahi-daemon: running [Xavispire.local]
+kernoops   852  0.0  0.0  56936   420 ?        Ss   nov27   0:00 /usr/sbin/kerneloops --test
+kernoops   854  0.0  0.0  56936   420 ?        Ss   nov27   0:00 /usr/sbin/kerneloops
+avahi      874  0.0  0.0  47076   344 ?        S    nov27   0:00 avahi-daemon: chroot helper
+colord    1096  0.0  0.1 343816 14588 ?        Ssl  nov27   0:00 /usr/lib/colord/colord
+rtkit     1485  0.0  0.0 183504  2956 ?        SNsl nov27   0:00 /usr/lib/rtkit/rtkit-daemon
+lp       24393  0.0  0.0  86368  6064 ?        S    01:08   0:00 /usr/lib/cups/notifier/dbus dbus://
+
+  [32m Actualizada el 28/11/18 01:11:34 WET por xavyan (B[m
 
