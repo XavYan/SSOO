@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# sysinfo_page - Un script que informa del estado del sistema (actualizado para la practica de la semana 9)
+
+# Declaracion de variables
+
+##### Estilos
+
+TEXT_BOLD=$(tput bold)
+TEXT_GREEN=$(tput setaf 2)
+TEXT_RESET=$(tput sgr0)
+TEXT_ULINE=$(tput sgr 0 1)
+
+##### Funciones
+
+##### Programa principal
+
+# PROCESAMIENTO DE LA LINEA DE COMANDOS
+#while [ "$1" != "" ]; do
+#  case $1 in
+#    -f | --file ) # indicar un fichero
+#      shift
+#      filename=$1
+#      ;;
+#    -i | --interactive ) # Indicar el fichero durante la ejecucion
+#      interactive=1
+#      ;;
+#    -p | --partitions-filter ) #Filtrar la informacion del espacio en disco
+#      shift
+#      filter=$1
+#      ;;
+#    -s | --show ) # Mostrar por pantalla la informacion
+#      show=1
+#      ;;
+#    -u )
+#      daemon=1
+#      ;;
+#    -h | --help ) # Mostrar la ayuda
+#      usage
+#      exit 0
+#      ;;
+#    * )
+#      usage
+#      exit 1
+#  esac
+#  shift
+#done
+
+sorting=user
+
+ps -A -o user,uid,gid,cputime,cmd --sort=$sorting,-cputime | uniq -w $(ps -o $sorting | cut -d " " -f1 | head -n1 |  wc -c)
+
+exit 0
