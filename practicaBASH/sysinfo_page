@@ -2,7 +2,23 @@
 
 # sysinfo_page - Un script que informa del estado del sistema (actualizado para la practica de la semana 9)
 
+# FALTA:
+# - Creacion de error_exit()
+# - '-ud'
+# - Evitar argumentos incompatibles
+# - Creacion de usage()
+
 # Declaracion de variables
+uid=    #UID del usuario
+gid=    #GID del usuario
+pcc=    #Proceso que mas CPU consume
+pcct=   #Tiempo que lleva pcc en ejecucion
+apl=    #Proceso mas antiguo del usuario
+aplt=   #Tiempo que lleva apl funcionando
+
+reverse=
+num=
+sort=1
 
 ##### Estilos
 
@@ -13,41 +29,86 @@ TEXT_ULINE=$(tput sgr 0 1)
 
 ##### Funciones
 
+error_exit() {
+  echo $1
+}
+
+table() {
+  for u in $(ps -A -o user --no-headers | sort -u); do
+
+    echo -n "$(ps -u $u -U $u -o user,uid,gid,comm,cputime --no-headers | sort -n -k 5 | tail -n1) "
+    echo -n "$(ps -u $u -U $u -o comm,etimes --no-headers | sort -n -k 2 | tail -n1) "
+    echo "$(ps -u $u -U $u -o user --no-headers | wc -l)"
+
+  done | sort $num $reverse -k $sort
+}
+
 ##### Programa principal
 
 # PROCESAMIENTO DE LA LINEA DE COMANDOS
-#while [ "$1" != "" ]; do
-#  case $1 in
-#    -f | --file ) # indicar un fichero
-#      shift
-#      filename=$1
-#      ;;
-#    -i | --interactive ) # Indicar el fichero durante la ejecucion
-#      interactive=1
-#      ;;
-#    -p | --partitions-filter ) #Filtrar la informacion del espacio en disco
-#      shift
-#      filter=$1
-#      ;;
-#    -s | --show ) # Mostrar por pantalla la informacion
-#      show=1
-#      ;;
-#    -u )
-#      daemon=1
-#      ;;
-#    -h | --help ) # Mostrar la ayuda
-#      usage
-#      exit 0
-#      ;;
-#    * )
-#      usage
-#      exit 1
-#  esac
-#  shift
-#done
+U=
+R=
+N=
+ut=
+sortt=
+sortd=
 
-sorting=user
+while [ "$1" != "" ]; do
+  case $1 in
+    -U ) #Ordenar por UID
+      U=1
+      num="-n" #Se va a ordenar por un valor numerico
+      if [ "$R" != "1" ]; then #Si se tiene que ordenar por reverse...
+        reverse=
+      fi
+      sort=2 #Se ordena por 2da columna
+      ;;
+    -R ) #Ordenacion inversa
+      R=1
+      reverse="-r"
+      ;;
+    -sortt ) #Ordenar por CPU tiempo consumido
+      sortt=1
+      if [ "$R" != "1" ]; then
+        reverse=
+      fi
+      sort=5
+      ;;
+    -sortd ) #Ordenar por tiempo de ejecucion
+      sortd=1
+      num="-n"
+      if [ "$R" != "1" ]; then
+        reverse=
+      fi
+      sort=7
+      ;;
+    -ut ) #Elimina procesos con un consumo de CPU mayor al indicado
+      ut=1
+      shift
+      N=$1
+      ;;
+    * ) #En caso de no elegir un argumento de los existentes...
+      usage
+      exit 1
+  esac
+  shift
+done
 
-ps -A -o user,uid,gid,cputime,cmd --sort=$sorting,-cputime | uniq -w $(ps -o $sorting | cut -d " " -f1 | head -n1 |  wc -c)
+if [ "$ut" = "1" ]; then #Si el usuario ha especificado el argumento ut...
+  for pid in $(ps -A -o pid --no-headers); do
+    for time in $(ps --pid $pid -o cputime --no-headers | tr -d ":"); do
+      if [ $time -gt $N ]; then
+        echo kill $pid 2>/dev/null
+        if [ "$?" != "0" ]; then
+          echo $(error_exit())
+        fi
+      fi
+    done
+  done
+fi
+
+#Mostramos las columnas
+echo -e "\e[107m\e[30mUSER UID GID MORE_CPU_CONSUME PCCtime ANCIENT_PROCESS_LOADED APLtime PROCESS_NUM \e[0m\n$(table)" | column -t
+
 
 exit 0

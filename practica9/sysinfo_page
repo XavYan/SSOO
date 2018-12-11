@@ -7,6 +7,7 @@ filename=~/system_info.txt
 interactive=0
 show=0
 filter=
+daemon=
 sysUser=0
 
 TITLE="Información de mi sistema"
@@ -107,20 +108,21 @@ echo
 }
 
 demon_process() {
-    echo -e "${TEXT_ULINE}Procesos demonio${TEXT_RESET}\n"
+  echo -e "${TEXT_ULINE}Procesos demonio${TEXT_RESET}\n"
+  if [ "$daemon" = "1" ]; then
     ps u | head -n1
-    for i in $(ps -A --no-headers | sed 's/^ *//' | cut -d " " -f1); do
+    for i in $(ps -A -ouser --no-headers | sort -u); do #Lista los usuarios con procesos activos
       sysUser=0
-      for j in $(echo $(ls $HOME/../) root); do
-        if [ "$(ps u --pid $i --no-headers | cut -d " " -f1)" = "$j" ]; then
+      for j in $(who | cut -d " " -f1); do #Lista los usuarios ACTUALMENTE LOGUEADOS
+        if [ "$i" = "$j" ]; then
           sysUser=1
-          break
         fi
       done
       if [ $sysUser -eq 0 ]; then
-        ps u --pid $i --no-headers
+        ps u -u $i --no-headers
       fi
     done
+  fi
 }
 
 ##### Programa principal
@@ -141,6 +143,9 @@ while [ "$1" != "" ]; do
       ;;
     -s | --show ) # Mostrar por pantalla la informacion
       show=1
+      ;;
+    -u )
+      daemon=1
       ;;
     -h | --help ) # Mostrar la ayuda
       usage
