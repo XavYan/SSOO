@@ -9,13 +9,6 @@
 # - Creacion de usage()
 
 # Declaracion de variables
-uid=    #UID del usuario
-gid=    #GID del usuario
-pcc=    #Proceso que mas CPU consume
-pcct=   #Tiempo que lleva pcc en ejecucion
-apl=    #Proceso mas antiguo del usuario
-aplt=   #Tiempo que lleva apl funcionando
-
 reverse=
 num=
 sort=1
@@ -30,7 +23,43 @@ TEXT_ULINE=$(tput sgr 0 1)
 ##### Funciones
 
 error_exit() {
-  echo $1
+  echo -e "${PROGNAME}: ${1:-"Error desconocido"}" 1>&2
+  exit 1
+}
+
+usage() {
+  echo "usage: ./sysinfo_page  [-U/-sortt/-sortd] [-R] [-ut ${TEXT_ULINE}N${TEXT_RESET}/-ud ${TEXT_ULINE}N${TEXT_RESET}]"
+  echo "For more information use sysinfo_page -h/--help"
+}
+
+help() {
+
+clear
+
+cat <<_EOF_
+-----------------------------------------------------------------------------------------------------
+  ${TEXT_BOLD}usage${TEXT_RESET}: ./sysinfo_page  [-U/-sortt/-sortd] [-R] [-ut ${TEXT_ULINE}N${TEXT_RESET}/-ud ${TEXT_ULINE}N${TEXT_RESET}]
+  -U
+    sort by UID.
+
+  -sortt
+    sort by MCCtime (More CPU Consume time).
+
+  -sortd
+    sort by APLtime (Ancient Process Loaded time).
+
+  -R
+    reverse sorting.
+
+  -ut ${TEXT_ULINE}N${TEXT_RESET}
+    delete all proceses consuming more CPU than especified by the ${TEXT_BOLD}N${TEXT_RESET} argument.
+
+  -ud ${TEXT_ULINE}N${TEXT_RESET}
+    delete all proceses with more execution time than especified by the ${TEXT_BOLD}N${TEXT_RESET} argument.
+
+------------------------------------------------------------------------------------------------------
+
+_EOF_
 }
 
 table() {
@@ -46,16 +75,20 @@ table() {
 ##### Programa principal
 
 # PROCESAMIENTO DE LA LINEA DE COMANDOS
-U=
-R=
-N=
-ut=
-sortt=
-sortd=
+U= #Si se ha activado el -U
+R= #Si se ha activado el -R
+N= #Almacena el valor dado por los argumentos -ut y -ud
+ut= #Si se ha activado el -ut
+ud= #Si se ha activado el -ud
+sortt= #Si se ha activado el -sortt
+sortd= #Si se ha activado el -sortd
 
 while [ "$1" != "" ]; do
-  case $1 in
+  case "$1" in
     -U ) #Ordenar por UID
+      if [ -n "$sortt" ] || [ -n "$sortd" ]; then
+        error_exit "Argumentos incompatibles.\n$(usage)"
+      fi
       U=1
       num="-n" #Se va a ordenar por un valor numerico
       if [ "$R" != "1" ]; then #Si se tiene que ordenar por reverse...
@@ -68,6 +101,9 @@ while [ "$1" != "" ]; do
       reverse="-r"
       ;;
     -sortt ) #Ordenar por CPU tiempo consumido
+      if [ -n "$U" ] || [ -n "$sortd" ]; then
+        error_exit "Argumentos incompatibles.\n$(usage)"
+      fi
       sortt=1
       if [ "$R" != "1" ]; then
         reverse=
@@ -75,6 +111,9 @@ while [ "$1" != "" ]; do
       sort=5
       ;;
     -sortd ) #Ordenar por tiempo de ejecucion
+      if [ -n "$U" ] || [ -n "$sortt" ]; then
+        error_exit "Argumentos incompatibles.\n$(usage)"
+      fi
       sortd=1
       num="-n"
       if [ "$R" != "1" ]; then
@@ -83,9 +122,24 @@ while [ "$1" != "" ]; do
       sort=7
       ;;
     -ut ) #Elimina procesos con un consumo de CPU mayor al indicado
+      if [ -n "$ud" ]; then
+        error_exit "Argumentos incompatibles.\n$(usage)"
+      fi
       ut=1
       shift
       N=$1
+      ;;
+    -ud ) #Elimina procesos con un consumo de CPU mayor al indicado
+      if [ -n "$ut" ]; then
+        error_exit "Argumentos incompatibles.\n$(usage)"
+      fi
+      ud=1
+      shift
+      N=$1
+      ;;
+    -h | --help )
+      help
+      exit 0
       ;;
     * ) #En caso de no elegir un argumento de los existentes...
       usage
@@ -95,20 +149,39 @@ while [ "$1" != "" ]; do
 done
 
 if [ "$ut" = "1" ]; then #Si el usuario ha especificado el argumento ut...
+  if [ -z "$N" ]; then
+    error_exit "$LINENO: El argumento ${TEXT_BOLD}ut${TEXT_RESET} requiere un parametro.\n$(usage)"
+  fi
   for pid in $(ps -A -o pid --no-headers); do
     for time in $(ps --pid $pid -o cputime --no-headers | tr -d ":"); do
-      if [ $time -gt $N ]; then
+      if [ $time -gt $N ]; then #Si el tiempo de consumo de CPU superior al indicado...
         echo kill $pid 2>/dev/null
         if [ "$?" != "0" ]; then
-          echo $(error_exit())
+          error_exit "$LINENO: Ha ocurrido un error."
         fi
       fi
     done
   done
 fi
 
-#Mostramos las columnas
-echo -e "\e[107m\e[30mUSER UID GID MORE_CPU_CONSUME PCCtime ANCIENT_PROCESS_LOADED APLtime PROCESS_NUM \e[0m\n$(table)" | column -t
+if [ "$ud" = "1" ]; then #Si el usuario ha especificado el argumento ud...
+  if [ -z "$N" ]; then
+    error_exit "$LINENO: El argumento ${TEXT_BOLD}ud${TEXT_RESET} requiere un parametro.\n$(usage)"
+  fi
+  for pid in $(ps -A -o pid --no-headers); do
+    for time in $(ps --pid $pid -o etimes --no-headers); do
+      if [ $time -gt $N ]; then #Si el tiempo de ejecucion supera el indicado por argumento...
+        echo kill $pid 2>/dev/null
+        if [ "$?" != "0" ]; then #Si ha ocurrido algun error con el comando kill...
+          error_exit "$LINENO: Ha ocurrido un error."
+        fi
+      fi
+    done
+  done
+fi
+
+#Mostramos la tabla
+echo -e "\e[104m\e[30mUSER UID GID MORE_CPU_CONSUME MCCtime ANCIENT_PROCESS_LOADED APLtime PROCESS_NUM \e[0m\n$(table)" | column -t
 
 
 exit 0
