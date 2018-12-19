@@ -23,7 +23,7 @@ TEXT_ULINE=$(tput sgr 0 1)
 ##### Funciones
 
 error_exit() {
-  echo -e "${PROGNAME}: ${1:-"Error desconocido"}" 1>&2
+  echo -e "${PROGNAME}: ${1:-"Error desconocido."}" 1>&2
   exit 1
 }
 
