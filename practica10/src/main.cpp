@@ -1,18 +1,34 @@
 #include <thread>
 #include "../include/Socket.hpp"
 
+/**
+ * CREAR CLASE USUARIO
+ */
+
 std::string line;
 std::string message;
+sockaddr_in local_address;
+sockaddr_in dest_address;
 
-void thread_send (Socket& socket, sockaddr_in& dest_address) {
-  std::getline(std::cin, line);
-  socket.send_to(line,dest_address);
+void thread_send (Socket& socket) {
+  while(line != "/quit") {
+    std::getline(std::cin, line);
+    if (line != "/quit") {
+      std::cout << inet_ntoa(local_address.sin_addr) << ": " << line << "\n";
+      socket.send_to(line,dest_address);
+    }
+    else std::cout << "Has salido de la sesión.\n";
+  }
 }
 
-void thread_recv (Socket& socket, sockaddr_in& dest_address) {
-  message = socket.receive_from(dest_address);
-  if (message != "/quit") std::cout << inet_ntoa(dest_address.sin_addr) << ": " << message << "\n";
-  else std::cout << "El usuario " << inet_ntoa(dest_address.sin_addr) << " ha salido de la sesión.\n";
+void thread_recv (Socket& socket) {
+  while (line != "/quit") {
+    message = socket.receive_from(dest_address);
+    /*Prototipo para mejorar la impresion del mensaje recibido */
+    //E imprimimos el mensaje
+    if (message != "/quit") std::cout << inet_ntoa(dest_address.sin_addr) << ": " << message << "\n";
+    else std::cout << "El usuario " << inet_ntoa(dest_address.sin_addr) << " ha salido de la sesión.\n";
+  }
 }
 
 int main (void) {
@@ -28,19 +44,19 @@ int main (void) {
     std::cin >> port2;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
 
-    sockaddr_in local_address = make_ip_address("127.0.0.1", port1);
-    sockaddr_in dest_address = make_ip_address("127.0.0.1", port2);
+    local_address = make_ip_address("127.0.0.1", port1);
+    dest_address = make_ip_address("127.0.0.1", port2);
+
 
     Socket socket(local_address); //Creando el socket local
 
-    while (line != "/quit") {
 
-      std::thread send (&thread_send,std::ref(socket),std::ref(dest_address));
-      std::thread recv (&thread_recv,std::ref(socket),std::ref(dest_address));
 
-      send.join();
+      std::thread send (&thread_send,std::ref(socket));
+      std::thread recv (&thread_recv,std::ref(socket));
+
+      send.join(); //Acabar con todos los hilos cuando line == /quit
       if (line != "/quit") recv.join();
-    }
   } //EXCEPCIONES
   catch (std::system_error& e) {
     std::cerr << "Chatsi: " << e.what() << "\n";
