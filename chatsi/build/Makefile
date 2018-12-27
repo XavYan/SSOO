@@ -14,4 +14,4 @@ clear:
 	rm recv send
 
 clean:
-	rm -f $(ODIR)/*.o *~ $(INCDIR)/*~
+	rm -f ../src/*.o

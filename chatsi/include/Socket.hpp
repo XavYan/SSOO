@@ -10,6 +10,7 @@
 #include <cstring> //Para std::strerror()
 
 //Librerias para errores
+#include <exception>
 #include <cerrno> //Para errno
 #include <system_error>
 
