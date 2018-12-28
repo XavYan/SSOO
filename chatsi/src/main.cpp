@@ -22,7 +22,6 @@ void int_signal_handler (int signum) {
 
 void request_cancellation (std::thread& thread) {
     int err = pthread_cancel(thread.native_handle());
-    std::cout << "request_cancellation\n";
     if (err != 0) {
       throw std::system_error(err, std::system_category(), "Problema al cancelar los hilos.");
     }
@@ -88,6 +87,12 @@ int main (void) {
 
     //Declaracion de variables
     int port1,port2;
+    std::string ip1,ip2;
+
+    std::cout << "Indica tu IP: ";
+    std::cin >> ip1;
+    std::cout << "Indica la IP a la que te vas a conectar: ";
+    std::cin >> ip2;
 
     std::cout << "Puerto a conectar: ";
     std::cin >> port1;
@@ -95,8 +100,8 @@ int main (void) {
     std::cin >> port2;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
 
-    local_address = make_ip_address("127.0.0.1", port1);
-    dest_address = make_ip_address("127.0.0.1", port2);
+    local_address = make_ip_address(ip1, port1);
+    dest_address = make_ip_address(ip2, port2);
 
     Socket socket(local_address); //Creando el socket local
 
@@ -133,7 +138,7 @@ int main (void) {
     return 3;
   }
   catch(...) {
-    std::cerr << "Chatse: error desconocido.\n";
+    std::cerr << "Chatsi: error desconocido.\n";
     return -1;
   }
   return 0;
