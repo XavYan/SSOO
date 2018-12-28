@@ -98,10 +98,7 @@ int main (void) {
     local_address = make_ip_address("127.0.0.1", port1);
     dest_address = make_ip_address("127.0.0.1", port2);
 
-
     Socket socket(local_address); //Creando el socket local
-
-
 
     std::thread send (&thread_send,std::ref(socket), std::ref(eptr1));
     std::thread recv (&thread_recv,std::ref(socket), std::ref(eptr2));
