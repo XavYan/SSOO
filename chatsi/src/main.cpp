@@ -77,7 +77,7 @@ int main (void) {
 
   //Manejando señales
   std::signal(SIGINT, &int_signal_handler); //Señal al pulsar Ctrl-C
-  //std::signal(SIGTERM, &int_signal_handler); //Señal al cerrar terminal
+  std::signal(SIGTERM, &int_signal_handler); //Señal al cerrar terminal
   std::signal(SIGHUP, &int_signal_handler); //Señal al apagar PC
 
   try {
