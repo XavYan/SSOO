@@ -1,5 +1,7 @@
 #include <thread>
 #include <pthread.h>
+#include <csignal>
+#include <cxxabi.h>
 #include <atomic>
 #include "../include/Socket.hpp"
 
@@ -12,16 +14,28 @@ std::string message;
 sockaddr_in local_address;
 sockaddr_in dest_address;
 
-std::atomic<bool>& quit (false);
+std::atomic<bool> quit (false);
+
+void int_signal_handler (int signum) {
+  quit = true;
+}
 
 void request_cancellation (std::thread& thread) {
-  int err = pthread_cancel(thread.native_handler());
-  if (err != 0) {
-    throw std::system_error(err, std::system_category(), "Problema al cancelar el hilo.");
-  }
+    int err = pthread_cancel(thread.native_handle());
+    std::cout << "request_cancellation\n";
+    if (err != 0) {
+      throw std::system_error(err, std::system_category(), "Problema al cancelar los hilos.");
+    }
 }
 
 void thread_send (Socket& socket, std::exception_ptr& eptr) {
+  //Bloqueamos las señales SIGTERM y SIGINT
+  sigset_t set;
+  sigaddset(&set,SIGINT);
+  sigaddset(&set,SIGTERM);
+  sigaddset(&set,SIGHUP);
+  pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
   try {
     while(line != "/quit") {
       std::getline(std::cin, line);
@@ -29,8 +43,9 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
         std::cout << inet_ntoa(local_address.sin_addr) << ": " << line << "\n";
         socket.send_to(line,dest_address);
       }
-      else std::cout << "Has salido de la sesión.\n";
     }
+  } catch (abi::__forced_unwind&) {
+    throw;
   } catch (...) {
     eptr = std::current_exception();
   }
@@ -38,12 +53,21 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
 }
 
 void thread_recv (Socket& socket, std::exception_ptr& eptr) {
+
+  //Bloqueamos las señales SIGTERM y SIGINT
+  sigset_t set;
+  sigaddset(&set,SIGINT);
+  sigaddset(&set,SIGTERM);
+  sigaddset(&set,SIGHUP);
+  pthread_sigmask(SIG_BLOCK, &set, nullptr);
+
   try {
-    while (line != "/quit") {
+    while (true) {
       message = socket.receive_from(dest_address);
-      if (message != "/quit") std::cout << inet_ntoa(dest_address.sin_addr) << ": " << message << "\n";
-      else std::cout << "El usuario " << inet_ntoa(dest_address.sin_addr) << " ha salido de la sesión.\n";
+      std::cout << inet_ntoa(dest_address.sin_addr) << ": " << message << "\n";
     }
+  } catch (abi::__forced_unwind&) {
+    throw;
   } catch (...) {
     eptr = std::current_exception();
   }
@@ -51,6 +75,12 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
 }
 
 int main (void) {
+
+  //Manejando señales
+  std::signal(SIGINT, &int_signal_handler); //Señal al pulsar Ctrl-C
+  //std::signal(SIGTERM, &int_signal_handler); //Señal al cerrar terminal
+  std::signal(SIGHUP, &int_signal_handler); //Señal al apagar PC
+
   try {
     std::exception_ptr eptr1 {};
     std::exception_ptr eptr2 {};
@@ -73,27 +103,28 @@ int main (void) {
 
 
 
-      std::thread send (&thread_send,std::ref(socket), std::ref(eptr1));
-      std::thread recv (&thread_recv,std::ref(socket), std::ref(eptr2));
+    std::thread send (&thread_send,std::ref(socket), std::ref(eptr1));
+    std::thread recv (&thread_recv,std::ref(socket), std::ref(eptr2));
 
-      while(!quit); //Espera a que algun hilo termine
+    while(!quit); //Esperar a que algun hilo termine
 
-      //Terminamos todos los hilos
-      request_cancellation(send);
-      request_cancellation(recv);
+    //Terminamos todos los hilos
+    request_cancellation(send);
+    request_cancellation(recv);
 
-      send.join(); //Acabar con todos los hilos cuando line == '/quit'
-      if (line != "/quit") recv.join();
+    send.join();
+    recv.join();
 
-      if (eptr1) {
-        std::rethrow_exception(eptr1);
-      }
-      if (eptr2) {
-        std::rethrow_exception(eptr2);
-      }
+
+    if (eptr1) {
+      std::rethrow_exception(eptr1);
+    }
+    if (eptr2) {
+      std::rethrow_exception(eptr2);
+    }
   } //EXCEPCIONES
   catch (std::bad_alloc& e) {
-    std::cerr << "chatsi: memoria insuficiente.\n";
+    std::cerr << "Chatsi: memoria insuficiente.\n";
     return 1;
   }
   catch (std::system_error& e) {
@@ -103,6 +134,10 @@ int main (void) {
   catch(std::invalid_argument& e) {
     std::cerr << "Chatsi: " << e.what() << "\n";
     return 3;
+  }
+  catch(...) {
+    std::cerr << "Chatse: error desconocido.\n";
+    return -1;
   }
   return 0;
 }
