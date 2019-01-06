@@ -14,6 +14,12 @@
 #include <cerrno> //Para errno
 #include <system_error>
 
+struct Message {
+  std::string ip;
+  int port;
+  char text[1024];
+};
+
 sockaddr_in make_ip_address(const std::string& ip, int port);
 
 class Socket {
@@ -25,6 +31,6 @@ public:
   Socket(const sockaddr_in& addr);
   ~Socket();
 
-  void send_to(const std::string& message,const sockaddr_in& address);
-  std::string receive_from(sockaddr_in& address);
+  void send_to(const Message& message,const sockaddr_in& address);
+  Message receive_from(sockaddr_in& address);
 };
