@@ -15,8 +15,10 @@
 #include <system_error>
 
 struct Message {
-  std::string ip;
-  int port;
+  int with_name;
+  char username[1024];
+  uint32_t ip;
+  in_port_t port;
   char text[1024];
 };
 
@@ -28,7 +30,7 @@ private:
 
 public:
 
-  Socket(const sockaddr_in& addr);
+  Socket(sockaddr_in& addr);
   ~Socket();
 
   void send_to(const Message& message,const sockaddr_in& address);

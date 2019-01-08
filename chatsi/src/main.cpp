@@ -4,13 +4,15 @@
 #include <cxxabi.h>
 #include <atomic>
 #include <set>
-//#include <utility>
+#include <getopt.h>
+#include <cstdlib>    // para std::getenv() y std::setenv()
 #include "../include/Socket.hpp"
 
 //Declaracion de variables
 bool help_mode = false;
 bool server_mode = false;
 bool client_mode = false;
+std::string username = std::getenv("USER");
 std::string line;
 sockaddr_in local_address;
 sockaddr_in dest_address;
@@ -42,11 +44,27 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
       Message message;
       std::getline(std::cin, line);
       if (line != "/quit") {
-        std::cout << inet_ntoa(local_address.sin_addr) << ": " << line << "\n";
-        line.copy(message.text, sizeof(message.text) - 1, 0);
-        message.ip = std::string(inet_ntoa(local_address.sin_addr));
-        message.port = htonl(local_address.sin_port);
-        socket.send_to(message, dest_address);
+        strcpy(message.text, line.c_str());
+        strcpy(message.username, username.c_str());
+        message.ip = local_address.sin_addr.s_addr;
+        message.port = local_address.sin_port;
+        message.with_name = 1;
+        std::cout << "\x1b[1A\x1b[2K";
+        if (server_mode) {
+          for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
+            sockaddr_in address {};
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = std::get<0>(user);
+            address.sin_port = std::get<1>(user);
+            socket.send_to(message, address);
+          }
+          std::cout << username << ": " << message.text << "\n";
+        } else if (client_mode) {
+          socket.send_to(message, dest_address);
+        } else {
+          std::cout << "Chatsi: Ha ocurrido un error al enviar el mensaje.\n";
+          break;
+        }
       }
     }
   } catch (abi::__forced_unwind&) {
@@ -65,18 +83,16 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
   sigaddset(&set,SIGHUP);
   pthread_sigmask(SIG_BLOCK, &set, nullptr);
 
-  Message message;
+  Message message {};
 
   try {
     while (true) {
       message = socket.receive_from(dest_address);
       if (server_mode) { //Si estas en modo servidor, aquellos que envien por primera vez el mensaje se deben insertar en el conjunto
         std::pair<uint32_t, in_port_t> user;
-        in_addr addr;
-        inet_aton(message.ip.data(), &addr);
-        std::get<0>(user) = addr.s_addr;
-        std::get<1>(user) = htons(message.port);
-        if (message.ip != std::string(inet_ntoa(local_address.sin_addr)) && destination_adresses.find(user) == destination_adresses.end()) {
+        std::get<0>(user) = message.ip;
+        std::get<1>(user) = message.port;
+        if ((message.ip != local_address.sin_addr.s_addr) && (destination_adresses.find(user) == destination_adresses.end())) {
           destination_adresses.insert(user);
         }
         //Enviamos el mensaje a cada usuario
@@ -88,7 +104,11 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
           socket.send_to(message, address);
         }
       }
-      std::cout << message.ip << ": " << message.text << "\n";
+      if (message.with_name == 1) {
+        std::cout << message.username << ": " << message.text << "\n";
+      } else {
+        std::cout << message.text << "\n";
+      }
     }
   } catch (abi::__forced_unwind&) {
     throw;
@@ -116,19 +136,26 @@ int main (int argc, char* argv[]) {
     int port_option = -1;
     std::string client_option;
 
+    //Declaramos la estructura de long_option
+    static struct option long_options[] = {
+      {"help",      no_argument,        0,  'h'},
+      {"server",    no_argument,        0,  's'},
+      {"client",    required_argument,  0,  'c'},
+      {"port",      required_argument,  0,  'p'},
+      {"username",  required_argument,  0,  'u'},
+      {0, 0, 0, 0}
+    };
+
     int c; //Caracter que se va leyendo a traves de las opciones indicadas en argv
-    while ((c = getopt(argc, argv, "hsc:p:")) != -1) {
+    while ((c = getopt_long(argc, argv, "hsc:p:u:", long_options, nullptr)) != -1) {
       switch (c) {
         case 'h': //Mostrar ayuda INCOMPATIBLE CON LOS DEMAS ARGUMENTOS
-          std::cout << "Opcion h detectada.\n";
           help_mode = true;
           break;
         case 's': //Modo servidor INCOMPATIBLE CON MODO CLIENTE ('c') Y CON AYUDA ('h'). SI NO SE ESPECIFICA PUERTO ('p'), SE LE ASIGNA UNO ALEATORIO (?)
-          std::cout << "Opcion s detectada.\n";
           server_mode = true;
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
-          std::cout << "Opcion c detectada con argumento \"" << optarg << "\"\n";
           client_option = std::string(optarg);
           if (client_option.empty()) {
             std::cerr << "La opcion '-c' necesita un argumento. Use \"./chatsi -h\" o \"./chatsi --help\" para conocer mas acerca del funcionamiento del programa.\n";
@@ -138,8 +165,10 @@ int main (int argc, char* argv[]) {
           client_mode = true;
           break;
         case 'p': //Indica el puerto NECESARIO ARGUMENTO. INCOMPATIBLE CON AYUDA ('h'). SI NO SE INDICA MODO, POR DEFECTO MODO SERVIDOR.
-          std::cout << "Opcion p detectada con argumento \"" << optarg << "\"\n";
           port_option = stoi(std::string(optarg));
+          break;
+        case 'u':
+          username = std::string(optarg);
           break;
         case '?':
           // No hacemos nada porque optarg se encarga de mostrar un mensaje de error
@@ -153,14 +182,14 @@ int main (int argc, char* argv[]) {
 
     if (help_mode) {
       usage(std::cout);
-      std::cout << "-h / --help:\n";
+      std::cout << "  -h / --help:\n";
       std::cout << "\tMuestra la ayuda de uso, tal y como ahora esta.\n";
-      std::cout << "-c / --client:\n";
-      std::cout << "\tInicia el programa en modo cliente. Es necesario indicar como argumento la IP del servidor. Si no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
-      std::cout << "-s / --server:\n";
+      std::cout << "  -c / --client:\n";
+      std::cout << "\tInicia el programa en modo cliente. Es necesario indicar como argumento la IP del servidor.\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
+      std::cout << "  -s / --server:\n";
       std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p' un puerto, el programa le asignara un puerto libre.\n";
-      std::cout << "-p / --port:\n";
-      std::cout << "\tCon este comando podemos indicar un puerto de conexion. Si no se especifica ninguna opcion de modo ('-s' o '-c') el programa por defecto iniciara en modo servidor.\n";
+      std::cout << "  -p / --port:\n";
+      std::cout << "\tCon este comando podemos indicar un puerto de conexion.\n\tSi no se especifica ninguna opcion de modo ('-s' o '-c') el programa por defecto iniciara en modo servidor.\n";
       return 0;
     }
 
@@ -173,21 +202,29 @@ int main (int argc, char* argv[]) {
       if (port_option < 0) { //Si no especifica puerto con '-p' se entiende que el puerto se lo asigna el programa
         port_option = 0;
       }
-      local_address = make_ip_address("127.0.0.1", port_option);
+      local_address = make_ip_address("", port_option);
       dest_address = local_address;
-      std::cout << "Asignado servidor en IP 127.0.0.1 con puerto " << htonl(dest_address.sin_port) << "\n";
     }
 
     if (client_mode) {
       if (port_option < 0) { //Le asignamos el puerto 8000 si el usuario no ha asignado ningun puerto
         port_option = 8000;
       }
-      local_address = make_ip_address("127.0.0.2", 0);
+      local_address = make_ip_address("", 0);
       dest_address = make_ip_address(client_option, port_option);
     }
 
 
     Socket socket(local_address); //Creando el socket local
+
+    if (client_mode) {
+      Message client_connection{};
+      client_connection.with_name = 0;
+      client_connection.ip = local_address.sin_addr.s_addr;
+      client_connection.port = local_address.sin_port;
+      strcpy(client_connection.text, std::string(username + " se ha conectado a la sesion.\n").c_str());
+      socket.send_to(client_connection, dest_address); //Mandamos un mensaje para avisar de que se ha conectado un usuario
+    }
 
     std::thread send (&thread_send,std::ref(socket), std::ref(eptr1));
     std::thread recv (&thread_recv,std::ref(socket), std::ref(eptr2));
