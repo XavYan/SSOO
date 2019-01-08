@@ -6,6 +6,7 @@
 #include <set>
 #include <getopt.h>
 #include <cstdlib>    // para std::getenv() y std::setenv()
+#include <netdb.h> //Para gethostbyname()
 #include "../include/Socket.hpp"
 
 //Declaracion de variables
@@ -92,7 +93,7 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
         std::pair<uint32_t, in_port_t> user;
         std::get<0>(user) = message.ip;
         std::get<1>(user) = message.port;
-        if ((message.ip != local_address.sin_addr.s_addr) && (destination_adresses.find(user) == destination_adresses.end())) {
+        if (message.ip != local_address.sin_addr.s_addr && (destination_adresses.find(user) == destination_adresses.end())) {
           destination_adresses.insert(user);
         }
         //Enviamos el mensaje a cada usuario
@@ -135,11 +136,12 @@ int main (int argc, char* argv[]) {
 
     int port_option = -1;
     std::string client_option;
+    std::string server_option;
 
     //Declaramos la estructura de long_option
     static struct option long_options[] = {
       {"help",      no_argument,        0,  'h'},
-      {"server",    no_argument,        0,  's'},
+      {"server",    required_argument,  0,  's'},
       {"client",    required_argument,  0,  'c'},
       {"port",      required_argument,  0,  'p'},
       {"username",  required_argument,  0,  'u'},
@@ -147,13 +149,14 @@ int main (int argc, char* argv[]) {
     };
 
     int c; //Caracter que se va leyendo a traves de las opciones indicadas en argv
-    while ((c = getopt_long(argc, argv, "hsc:p:u:", long_options, nullptr)) != -1) {
+    while ((c = getopt_long(argc, argv, "hs:c:p:u:", long_options, nullptr)) != -1) {
       switch (c) {
         case 'h': //Mostrar ayuda INCOMPATIBLE CON LOS DEMAS ARGUMENTOS
           help_mode = true;
           break;
         case 's': //Modo servidor INCOMPATIBLE CON MODO CLIENTE ('c') Y CON AYUDA ('h'). SI NO SE ESPECIFICA PUERTO ('p'), SE LE ASIGNA UNO ALEATORIO (?)
           server_mode = true;
+          server_option = std::string(optarg);
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
           client_option = std::string(optarg);
@@ -202,7 +205,7 @@ int main (int argc, char* argv[]) {
       if (port_option < 0) { //Si no especifica puerto con '-p' se entiende que el puerto se lo asigna el programa
         port_option = 0;
       }
-      local_address = make_ip_address("", port_option);
+      local_address = make_ip_address(getIPAddress(), port_option);
       dest_address = local_address;
     }
 
@@ -210,7 +213,7 @@ int main (int argc, char* argv[]) {
       if (port_option < 0) { //Le asignamos el puerto 8000 si el usuario no ha asignado ningun puerto
         port_option = 8000;
       }
-      local_address = make_ip_address("", 0);
+      local_address = make_ip_address(getIPAddress(), 0);
       dest_address = make_ip_address(client_option, port_option);
     }
 

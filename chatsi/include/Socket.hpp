@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <cstring> //Para std::strerror()
 
 //Librerias para errores
@@ -21,6 +22,8 @@ struct Message {
   in_port_t port;
   char text[1024];
 };
+
+std::string getIPAddress (void);
 
 sockaddr_in make_ip_address(const std::string& ip, int port);
 
