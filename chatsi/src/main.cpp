@@ -6,7 +6,8 @@
 #include <set>
 #include <getopt.h>
 #include <cstdlib>    // para std::getenv() y std::setenv()
-#include <netdb.h> //Para gethostbyname()
+#include <netdb.h>    //Para gethostbyname()
+#include <mutex>
 #include "../include/Socket.hpp"
 
 //Declaracion de variables
@@ -17,6 +18,7 @@ std::string username = std::getenv("USER");
 std::string line;
 sockaddr_in local_address;
 sockaddr_in dest_address;
+std::mutex semaphore;
 std::set<std::pair<uint32_t, in_port_t> > destination_adresses;
 
 std::atomic<bool> quit (false);
@@ -93,8 +95,10 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
         std::pair<uint32_t, in_port_t> user;
         std::get<0>(user) = message.ip;
         std::get<1>(user) = message.port;
-        if ((message.ip != local_address.sin_addr.s_addr || message.port != local_address.sin_port) && (destination_adresses.find(user) == destination_adresses.end())) {
-          destination_adresses.insert(user);
+        { std::lock_guard<std::mutex> lock(semaphore);
+          if ((message.ip != local_address.sin_addr.s_addr || message.port != local_address.sin_port) && (destination_adresses.find(user) == destination_adresses.end())) {
+            destination_adresses.insert(user);
+          }
         }
         //Enviamos el mensaje a cada usuario
         for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
@@ -120,7 +124,7 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
 }
 
 void usage (std::ostream& os) {
-  os << "Usage: [-h/--help] [-c/--client] [-s/--server] [-p/--port]\n";
+  os << "Usage: [-h/--help] [-c ip/--client ip] [-s/--server] [-p port/--port port] [-u user]\n";
 }
 
 int main (int argc, char* argv[]) {
@@ -134,21 +138,21 @@ int main (int argc, char* argv[]) {
     std::exception_ptr eptr1 {};
     std::exception_ptr eptr2 {};
 
-    int port_option = -1;
+    int port_option = 0;
     std::string client_option;
 
     //Declaramos la estructura de long_option
     static struct option long_options[] = {
       {"help",      no_argument,        0,  'h'},
       {"server",    no_argument,        0,  's'},
-      {"client",    required_argument,  0,  'c'},
+      {"client",    optional_argument,  0,  'c'},
       {"port",      required_argument,  0,  'p'},
       {"username",  required_argument,  0,  'u'},
       {0, 0, 0, 0}
     };
 
     int c; //Caracter que se va leyendo a traves de las opciones indicadas en argv
-    while ((c = getopt_long(argc, argv, "hsc:p:u:", long_options, nullptr)) != -1) {
+    while ((c = getopt_long(argc, argv, "hsc::p:u:", long_options, nullptr)) != -1) {
       switch (c) {
         case 'h': //Mostrar ayuda INCOMPATIBLE CON LOS DEMAS ARGUMENTOS
           help_mode = true;
@@ -157,7 +161,11 @@ int main (int argc, char* argv[]) {
           server_mode = true;
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
-          client_option = std::string(optarg);
+          if (!client_option.empty()) {
+            client_option = std::string(optarg);
+          } else {
+            client_option = getIPAddress();
+          }
           if (client_option.empty()) {
             std::cerr << "La opcion '-c' necesita un argumento. Use \"./chatsi -h\" o \"./chatsi --help\" para conocer mas acerca del funcionamiento del programa.\n";
             usage(std::cerr);
@@ -184,13 +192,15 @@ int main (int argc, char* argv[]) {
     if (help_mode) {
       usage(std::cout);
       std::cout << "  -h / --help:\n";
-      std::cout << "\tMuestra la ayuda de uso, tal y como ahora esta.\n";
+      std::cout << "\tMuestra la ayuda de uso, tal y como ahora esta.\n\tEste comando prioriza sobre todos los demas.\n";
       std::cout << "  -c / --client:\n";
-      std::cout << "\tInicia el programa en modo cliente. Es necesario indicar como argumento la IP del servidor.\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
+      std::cout << "\tInicia el programa en modo cliente.\n\tSi no se especifica la IP del servidor como argumento, se entendera que se pretende hacer conexion via local.\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
       std::cout << "  -s / --server:\n";
-      std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p' un puerto, el programa le asignara un puerto libre.\n";
+      std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p', el programa le asignara un puerto libre.\n";
       std::cout << "  -p / --port:\n";
       std::cout << "\tCon este comando podemos indicar un puerto de conexion.\n\tSi no se especifica ninguna opcion de modo ('-s' o '-c') el programa por defecto iniciara en modo servidor.\n";
+      std::cout << "  -u:\n";
+      std::cout << "\tCon este comando podemos indicar un nombre de usuario.\n\tSi no se especifica este comando, por defecto se usara el nombre de usuario del sistema.\n";
       return 0;
     }
 
@@ -200,15 +210,12 @@ int main (int argc, char* argv[]) {
         usage(std::cerr);
         return 2;
       }
-      if (port_option < 0) { //Si no especifica puerto con '-p' se entiende que el puerto se lo asigna el programa
-        port_option = 0;
-      }
       local_address = make_ip_address(getIPAddress(), port_option);
       dest_address = local_address;
     }
 
     if (client_mode) {
-      if (port_option < 0) { //Le asignamos el puerto 8000 si el usuario no ha asignado ningun puerto
+      if (port_option == 0) { //Le asignamos el puerto 8000 si el usuario no ha asignado ningun puerto
         port_option = 8000;
       }
       local_address = make_ip_address(getIPAddress(), 0);
@@ -217,6 +224,10 @@ int main (int argc, char* argv[]) {
 
 
     Socket socket(local_address); //Creando el socket local
+
+    if (server_mode) { //Si no especifica puerto con '-p' se entiende que el puerto se lo asigna el programa
+      std::cout << "Asignado puerto " << ntohs(local_address.sin_port) << "\n";
+    }
 
     if (client_mode) {
       Message client_connection{};
