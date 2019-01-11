@@ -47,7 +47,7 @@ std::string exec (const std::vector<std::string>& v) {
     //Ejecutamos la operacion
     close(fds[0]);
     int error_execvp = execvp(v[0].c_str(), aux);
-    if (error_execvp < 0) {  std::cout << "/run: No se pudo ejecutar el comando."; }
+    if (error_execvp < 0) {  std::cout << "No se pudo ejecutar el comando."; }
     close(fds[1]);
     exit(0);
 
@@ -59,10 +59,10 @@ std::string exec (const std::vector<std::string>& v) {
       read(fds[0], buffer, 255);
       result += std::string(buffer);
     }
-    close(fds[0]); 
+    close(fds[0]);
   } else { //Error
-    result += "/run: No se pudo ejecutar la operacion.";
-    result += "/run: Fallo en fork()";
+    result += "No se pudo ejecutar la operacion.";
+    result += "Fallo en fork()";
   }
   return result;
 }

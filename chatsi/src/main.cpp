@@ -54,7 +54,7 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
       if (line != "/quit") {
         if (line.substr(0, 4) == "/run") {
           message.command = 1;
-          if (line.length() <= 5) { line = "Error: /run requiere que se indique un comando a ejecutar."; }
+          if (line.length() <= 5) { line += "\nError: /run requiere que se indique un comando a ejecutar."; }
           else { line += "\n" + exec(word_split(line.substr(5))); }
         }
         strcpy(message.text, line.c_str());
@@ -265,6 +265,18 @@ int main (int argc, char* argv[]) {
     }
     if (eptr2) {
       std::rethrow_exception(eptr2);
+    }
+
+    if (client_mode) {
+      Message desconnection{};
+      desconnection.with_name = 0;
+      desconnection.command = 0;
+      desconnection.ip = local_address.sin_addr.s_addr;
+      desconnection.port = local_address.sin_port;
+      strcpy(desconnection.text, std::string(username + " se ha desconectado a la sesion.\n").c_str());
+      socket.send_to(desconnection, dest_address); //Mandamos un mensaje para avisar de que se ha desconectado un usuario
+
+      std::cout << "Te has desconectado de la sesión.\n";
     }
   } //EXCEPCIONES
   catch (std::bad_alloc& e) {
