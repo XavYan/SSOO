@@ -17,10 +17,11 @@
 
 struct Message {
   int with_name;
+  int command;
   char username[1024];
   uint32_t ip;
   in_port_t port;
-  char text[1024];
+  char text[32768];
 };
 
 std::string getIPAddress (void);

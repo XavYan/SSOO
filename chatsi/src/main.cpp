@@ -9,10 +9,13 @@
 #include <netdb.h>    //Para gethostbyname()
 #include <mutex>
 #include "../include/Socket.hpp"
+#include "../include/commands.hpp" //Para los comandos adicionales
+
+#define PORT_BY_DEFAULT 8000
 
 //Declaracion de variables
 bool help_mode = false;
-bool server_mode = false;
+bool server_mode = true;
 bool client_mode = false;
 std::string username = std::getenv("USER");
 std::string line;
@@ -46,12 +49,18 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
     while(line != "/quit") {
       Message message;
       std::getline(std::cin, line);
+      message.with_name = 1;
+      message.command = 0;
       if (line != "/quit") {
+        if (line.substr(0, 4) == "/run") {
+          message.command = 1;
+          if (line.length() <= 5) { line = "Error: /run requiere que se indique un comando a ejecutar."; }
+          else { line += "\n" + exec(word_split(line.substr(5))); }
+        }
         strcpy(message.text, line.c_str());
         strcpy(message.username, username.c_str());
         message.ip = local_address.sin_addr.s_addr;
         message.port = local_address.sin_port;
-        message.with_name = 1;
         std::cout << "\x1b[1A\x1b[2K";
         if (server_mode) {
           for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
@@ -61,7 +70,9 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
             address.sin_port = std::get<1>(user);
             socket.send_to(message, address);
           }
-          std::cout << username << ": " << message.text << "\n";
+          std::cout << (message.with_name == 1 ? username + ": " : "");
+          if (message.command == 1) std::cout << "\n";
+          std::cout << message.text << "\n";
         } else if (client_mode) {
           socket.send_to(message, dest_address);
         } else {
@@ -110,7 +121,9 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
         }
       }
       if (message.with_name == 1) {
-        std::cout << message.username << ": " << message.text << "\n";
+        std::cout << message.username << ": ";
+        if (message.command == 1) std::cout << "\n";
+        std::cout << message.text << "\n";
       } else {
         std::cout << message.text << "\n";
       }
@@ -127,6 +140,8 @@ void usage (std::ostream& os) {
   os << "Usage: [-h/--help] [-c ip/--client ip] [-s/--server] [-p port/--port port] [-u user]\n";
 }
 
+//------------------------------- MAIN -------------------------------//
+
 int main (int argc, char* argv[]) {
 
   //Manejando señales
@@ -139,7 +154,7 @@ int main (int argc, char* argv[]) {
     std::exception_ptr eptr2 {};
 
     int port_option = 0;
-    std::string client_option;
+    std::string client_option = "";
 
     //Declaramos la estructura de long_option
     static struct option long_options[] = {
@@ -157,21 +172,15 @@ int main (int argc, char* argv[]) {
         case 'h': //Mostrar ayuda INCOMPATIBLE CON LOS DEMAS ARGUMENTOS
           help_mode = true;
           break;
-        case 's': //Modo servidor INCOMPATIBLE CON MODO CLIENTE ('c') Y CON AYUDA ('h'). SI NO SE ESPECIFICA PUERTO ('p'), SE LE ASIGNA UNO ALEATORIO (?)
+        case 's': //Modo servidor INCOMPATIBLE CON MODO CLIENTE ('c') Y CON AYUDA ('h'). SI NO SE ESPECIFICA PUERTO ('p'), SE LE ASIGNA UNO ALEATORIO
           server_mode = true;
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
-          if (!client_option.empty()) {
+          if (optarg) {
             client_option = std::string(optarg);
-          } else {
-            client_option = getIPAddress();
-          }
-          if (client_option.empty()) {
-            std::cerr << "La opcion '-c' necesita un argumento. Use \"./chatsi -h\" o \"./chatsi --help\" para conocer mas acerca del funcionamiento del programa.\n";
-            usage(std::cerr);
-            return 1;
           }
           client_mode = true;
+          server_mode = false;
           break;
         case 'p': //Indica el puerto NECESARIO ARGUMENTO. INCOMPATIBLE CON AYUDA ('h'). SI NO SE INDICA MODO, POR DEFECTO MODO SERVIDOR.
           port_option = stoi(std::string(optarg));
@@ -215,8 +224,8 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
-      if (port_option == 0) { //Le asignamos el puerto 8000 si el usuario no ha asignado ningun puerto
-        port_option = 8000;
+      if (port_option == 0) { //Le asignamos el puerto por defecto si el usuario no ha asignado ningun puerto
+        port_option = PORT_BY_DEFAULT;
       }
       local_address = make_ip_address(getIPAddress(), 0);
       dest_address = make_ip_address(client_option, port_option);
