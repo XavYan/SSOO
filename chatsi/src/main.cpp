@@ -160,14 +160,14 @@ int main (int argc, char* argv[]) {
     static struct option long_options[] = {
       {"help",      no_argument,        0,  'h'},
       {"server",    no_argument,        0,  's'},
-      {"client",    optional_argument,  0,  'c'},
+      {"client",    required_argument,  0,  'c'},
       {"port",      required_argument,  0,  'p'},
       {"username",  required_argument,  0,  'u'},
       {0, 0, 0, 0}
     };
 
     int c; //Caracter que se va leyendo a traves de las opciones indicadas en argv
-    while ((c = getopt_long(argc, argv, "hsc::p:u:", long_options, nullptr)) != -1) {
+    while ((c = getopt_long(argc, argv, "hsc:p:u:", long_options, nullptr)) != -1) {
       switch (c) {
         case 'h': //Mostrar ayuda INCOMPATIBLE CON LOS DEMAS ARGUMENTOS
           help_mode = true;
@@ -176,7 +176,7 @@ int main (int argc, char* argv[]) {
           server_mode = true;
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
-          if (optarg) {
+          if (std::string(optarg) != "local") {
             client_option = std::string(optarg);
           }
           client_mode = true;
@@ -200,20 +200,24 @@ int main (int argc, char* argv[]) {
 
     if (help_mode) {
       usage(std::cout);
+      std::cout << "\n";
       std::cout << "  -h / --help:\n";
       std::cout << "\tMuestra la ayuda de uso, tal y como ahora esta.\n\tEste comando prioriza sobre todos los demas.\n";
       std::cout << "  -c / --client:\n";
-      std::cout << "\tInicia el programa en modo cliente.\n\tSi no se especifica la IP del servidor como argumento, se entendera que se pretende hacer conexion via local.\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
+      std::cout << "\tInicia el programa en modo cliente.\n\tSe debe especificar como argumento la IP a la que se quiere conectar o usar \"local\" como argumento si se desea una conexion local.";
+      std::cout << "\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
       std::cout << "  -s / --server:\n";
       std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p', el programa le asignara un puerto libre.\n";
       std::cout << "  -p / --port:\n";
       std::cout << "\tCon este comando podemos indicar un puerto de conexion.\n\tSi no se especifica ninguna opcion de modo ('-s' o '-c') el programa por defecto iniciara en modo servidor.\n";
       std::cout << "  -u:\n";
       std::cout << "\tCon este comando podemos indicar un nombre de usuario.\n\tSi no se especifica este comando, por defecto se usara el nombre de usuario del sistema.\n";
+      std::cout << "\n";
       return 0;
     }
 
     if (server_mode) {
+      std::cout << "Iniciado en modo servidor.\n";
       if (client_mode) {
         std::cerr << "El modo cliente ('-c') y el modo servidor ('-s') no pueden ser usados al mismo tiempo. Use \"./chatsi -h\" o \"./chatsi --help\" para conocer mas acerca del funcionamiento del programa.\n";
         usage(std::cerr);
@@ -224,10 +228,12 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
+      std::cout << "Iniciado en modo cliente.\n";
       if (port_option == 0) { //Le asignamos el puerto por defecto si el usuario no ha asignado ningun puerto
         port_option = PORT_BY_DEFAULT;
       }
       local_address = make_ip_address(getIPAddress(), 0);
+      std::cout << "Valor de client_option: " << client_option << "\n";
       dest_address = make_ip_address(client_option, port_option);
     }
 
@@ -243,7 +249,7 @@ int main (int argc, char* argv[]) {
       client_connection.with_name = 0;
       client_connection.ip = local_address.sin_addr.s_addr;
       client_connection.port = local_address.sin_port;
-      strcpy(client_connection.text, std::string(username + " se ha conectado a la sesion.\n").c_str());
+      strcpy(client_connection.text, std::string(username + " se ha conectado a la sesion.").c_str());
       socket.send_to(client_connection, dest_address); //Mandamos un mensaje para avisar de que se ha conectado un usuario
     }
 
@@ -273,7 +279,7 @@ int main (int argc, char* argv[]) {
       desconnection.command = 0;
       desconnection.ip = local_address.sin_addr.s_addr;
       desconnection.port = local_address.sin_port;
-      strcpy(desconnection.text, std::string(username + " se ha desconectado a la sesion.\n").c_str());
+      strcpy(desconnection.text, std::string(username + " se ha desconectado a la sesion.").c_str());
       socket.send_to(desconnection, dest_address); //Mandamos un mensaje para avisar de que se ha desconectado un usuario
 
       std::cout << "Te has desconectado de la sesión.\n";
