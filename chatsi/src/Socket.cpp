@@ -1,5 +1,16 @@
 #include "../include/Socket.hpp"
 
+Message create_message (const std::string text, const std::string username, const uint32_t ip, const in_port_t port, const int name, const int command) {
+  Message message{};
+  message.with_name = name;
+  message.command = command;
+  message.ip = ip;
+  message.port = port;
+  strcpy(message.username, username.c_str());
+  strcpy(message.text, text.c_str());
+  return message;
+}
+
 std::string getIPAddress (void) {
     std::string ipAddress="Unable to get IP Address";
     struct ifaddrs *interfaces = NULL;

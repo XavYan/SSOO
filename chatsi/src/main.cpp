@@ -37,6 +37,11 @@ void request_cancellation (std::thread& thread) {
     }
 }
 
+Message create_msg (const std::string text, const  int name = 1, const int command = 0) {
+  Message message = create_message(text, username, local_address.sin_addr.s_addr, local_address.sin_port, name, command);
+  return message;
+}
+
 void thread_send (Socket& socket, std::exception_ptr& eptr) {
   //Bloqueamos las señales SIGTERM, SIGINT y SIGHUP
   sigset_t set;
@@ -49,18 +54,14 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
     while(line != "/quit") {
       Message message;
       std::getline(std::cin, line);
-      message.with_name = 1;
-      message.command = 0;
+      int command_temp = 0;
       if (line != "/quit") {
         if (line.substr(0, 4) == "/run") {
-          message.command = 1;
+          command_temp = 1;
           if (line.length() <= 5) { line += "\nError: /run requiere que se indique un comando a ejecutar."; }
           else { line += "\n" + exec(word_split(line.substr(5))); }
         }
-        strcpy(message.text, line.c_str());
-        strcpy(message.username, username.c_str());
-        message.ip = local_address.sin_addr.s_addr;
-        message.port = local_address.sin_port;
+        message = create_msg(line, 1, command_temp);
         std::cout << "\x1b[1A\x1b[2K";
         if (server_mode) {
           for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
@@ -233,7 +234,6 @@ int main (int argc, char* argv[]) {
         port_option = PORT_BY_DEFAULT;
       }
       local_address = make_ip_address(getIPAddress(), 0);
-      std::cout << "Valor de client_option: " << client_option << "\n";
       dest_address = make_ip_address(client_option, port_option);
     }
 
@@ -245,11 +245,7 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
-      Message client_connection{};
-      client_connection.with_name = 0;
-      client_connection.ip = local_address.sin_addr.s_addr;
-      client_connection.port = local_address.sin_port;
-      strcpy(client_connection.text, std::string(username + " se ha conectado a la sesion.").c_str());
+      Message client_connection = create_msg(std::string(username + " se ha conectado a la sesion."), 0);
       socket.send_to(client_connection, dest_address); //Mandamos un mensaje para avisar de que se ha conectado un usuario
     }
 
@@ -274,15 +270,9 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
-      Message desconnection{};
-      desconnection.with_name = 0;
-      desconnection.command = 0;
-      desconnection.ip = local_address.sin_addr.s_addr;
-      desconnection.port = local_address.sin_port;
-      strcpy(desconnection.text, std::string(username + " se ha desconectado a la sesion.").c_str());
+      Message desconnection = create_msg(std::string(username + " se ha desconectado a la sesion."), 0);
       socket.send_to(desconnection, dest_address); //Mandamos un mensaje para avisar de que se ha desconectado un usuario
-
-      std::cout << "Te has desconectado de la sesión.\n";
+      std::cout << "\nTe has desconectado de la sesión.\n";
     }
   } //EXCEPCIONES
   catch (std::bad_alloc& e) {

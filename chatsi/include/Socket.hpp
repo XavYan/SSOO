@@ -24,6 +24,8 @@ struct Message {
   char text[32768];
 };
 
+Message create_message (const std::string text, const std::string username, const uint32_t ip, const in_port_t port, const  int name = 1, const int command = 0);
+
 std::string getIPAddress (void);
 
 sockaddr_in make_ip_address(const std::string& ip, int port);
