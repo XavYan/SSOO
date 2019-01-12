@@ -37,8 +37,8 @@ void request_cancellation (std::thread& thread) {
     }
 }
 
-Message create_msg (const std::string text, const  int name = 1, const int command = 0) {
-  Message message = create_message(text, username, local_address.sin_addr.s_addr, local_address.sin_port, name, command);
+Message create_msg (const std::string text, const int desc = 0, const  int name = 1, const int command = 0) {
+  Message message = create_message(text, desc, username, local_address.sin_addr.s_addr, local_address.sin_port, name, command);
   return message;
 }
 
@@ -61,7 +61,7 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
           if (line.length() <= 5) { line += "\nError: /run requiere que se indique un comando a ejecutar."; }
           else { line += "\n" + exec(word_split(line.substr(5))); }
         }
-        message = create_msg(line, 1, command_temp);
+        message = create_msg(line, 0, 1, command_temp);
         std::cout << "\x1b[1A\x1b[2K";
         if (server_mode) {
           for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
@@ -113,13 +113,14 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
           }
         }
         //Enviamos el mensaje a cada usuario
-        for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
+        for (std::pair<uint32_t, in_port_t> pair : destination_adresses) {
           sockaddr_in address {};
           address.sin_family = AF_INET;
-          address.sin_addr.s_addr = std::get<0>(user);
-          address.sin_port = std::get<1>(user);
+          address.sin_addr.s_addr = std::get<0>(pair);
+          address.sin_port = std::get<1>(pair);
           socket.send_to(message, address);
         }
+        if (message.desc == 1) destination_adresses.erase(user);
       }
       if (message.with_name == 1) {
         std::cout << message.username << ": ";
@@ -150,6 +151,8 @@ int main (int argc, char* argv[]) {
   std::signal(SIGTERM, &int_signal_handler); //Señal al cerrar la terminal
   std::signal(SIGHUP, &int_signal_handler); //Señal al apagar PC
 
+  History history(username);
+
   try {
     std::exception_ptr eptr1 {};
     std::exception_ptr eptr2 {};
@@ -177,7 +180,7 @@ int main (int argc, char* argv[]) {
           server_mode = true;
           break;
         case 'c': //Modo cliente INCOMPATIBLE CON MODO SERVIDOR ('s') Y CON AYUDA ('h'). NECESARIO PUERTO ('p') Y ARGUMENTO.
-          if (std::string(optarg) != "local") {
+          if (std::string(optarg) != "l") {
             client_option = std::string(optarg);
           }
           client_mode = true;
@@ -245,7 +248,7 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
-      Message client_connection = create_msg(std::string(username + " se ha conectado a la sesion."), 0);
+      Message client_connection = create_msg(std::string(username + " se ha conectado a la sesion."), 0, 0);
       socket.send_to(client_connection, dest_address); //Mandamos un mensaje para avisar de que se ha conectado un usuario
     }
 
@@ -261,7 +264,6 @@ int main (int argc, char* argv[]) {
     send.join();
     recv.join();
 
-
     if (eptr1) {
       std::rethrow_exception(eptr1);
     }
@@ -270,7 +272,7 @@ int main (int argc, char* argv[]) {
     }
 
     if (client_mode) {
-      Message desconnection = create_msg(std::string(username + " se ha desconectado a la sesion."), 0);
+      Message desconnection = create_msg(std::string(username + " se ha desconectado a la sesion."), 1, 0);
       socket.send_to(desconnection, dest_address); //Mandamos un mensaje para avisar de que se ha desconectado un usuario
       std::cout << "\nTe has desconectado de la sesión.\n";
     }

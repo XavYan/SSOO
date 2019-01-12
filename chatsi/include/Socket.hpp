@@ -18,13 +18,14 @@
 struct Message {
   int with_name;
   int command;
+  int desc;
   char username[1024];
   uint32_t ip;
   in_port_t port;
   char text[32768];
 };
 
-Message create_message (const std::string text, const std::string username, const uint32_t ip, const in_port_t port, const  int name = 1, const int command = 0);
+Message create_message (const std::string text, const int desc, const std::string username, const uint32_t ip, const in_port_t port, const  int name = 1, const int command = 0);
 
 std::string getIPAddress (void);
 

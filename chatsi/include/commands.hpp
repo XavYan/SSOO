@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
+#include <sys/mman.h>
 
 /*Los comandos estaran formados por / y no mas de cinco letras consecutivas que indican el comando a ejecutar*/
 std::vector<std::string> word_split (const std::string& line) {
@@ -47,22 +48,21 @@ std::string exec (const std::vector<std::string>& v) {
     //Ejecutamos la operacion
     close(fds[0]);
     int error_execvp = execvp(v[0].c_str(), aux);
-    if (error_execvp < 0) {  std::cout << "No se pudo ejecutar el comando."; }
+    if (error_execvp < 0) {  throw std::system_error(errno, std::system_category(), "Fallo al ejecutar el execvp().\n"); }
     close(fds[1]);
     exit(0);
 
   } else if (pid > 0) { //Proceso padre
     close(fds[1]);
     char buffer[255];
-    while (read(fds[0], buffer, 255) > 0) {
-      wait(NULL);
-      read(fds[0], buffer, 255);
-      result += std::string(buffer);
+    int len = 0;
+    while ((len = read(fds[0], buffer, 255)) > 0) {
+      result += std::string(buffer, len);
     }
+    wait(NULL);
     close(fds[0]);
   } else { //Error
-    result += "No se pudo ejecutar la operacion.";
-    result += "Fallo en fork()";
+    throw std::system_error(errno, std::system_category(), "Fallo en el fork().\n");
   }
   return result;
 }
