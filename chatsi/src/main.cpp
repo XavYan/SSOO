@@ -9,6 +9,7 @@
 #include <netdb.h>    //Para gethostbyname()
 #include <mutex>
 #include "../include/Socket.hpp"
+#include "../include/history.hpp"
 #include "../include/commands.hpp" //Para los comandos adicionales
 
 #define PORT_BY_DEFAULT 8000
@@ -22,6 +23,7 @@ std::string line;
 sockaddr_in local_address;
 sockaddr_in dest_address;
 std::mutex semaphore;
+std::mutex history_semaphore;
 std::set<std::pair<uint32_t, in_port_t> > destination_adresses;
 
 std::atomic<bool> quit (false);
@@ -38,11 +40,14 @@ void request_cancellation (std::thread& thread) {
 }
 
 Message create_msg (const std::string text, const int desc = 0, const  int name = 1, const int command = 0) {
-  Message message = create_message(text, desc, username, local_address.sin_addr.s_addr, local_address.sin_port, name, command);
+  std::time_t time = std::time(nullptr);
+  std::string str_time(std::asctime(std::localtime(&time)));
+  str_time = str_time.substr(0, str_time.length()-1);
+  Message message = create_message(text, desc, username, str_time, local_address.sin_addr.s_addr, local_address.sin_port, name, command);
   return message;
 }
 
-void thread_send (Socket& socket, std::exception_ptr& eptr) {
+void thread_send (Socket& socket, History& history, std::exception_ptr& eptr) {
   //Bloqueamos las señales SIGTERM, SIGINT y SIGHUP
   sigset_t set;
   sigaddset(&set,SIGINT);
@@ -64,6 +69,10 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
         message = create_msg(line, 0, 1, command_temp);
         std::cout << "\x1b[1A\x1b[2K";
         if (server_mode) {
+          {
+            std::lock_guard<std::mutex> lock(history_semaphore);
+            history.add_message(message);
+          }
           for (std::pair<uint32_t, in_port_t> user : destination_adresses) {
             sockaddr_in address {};
             address.sin_family = AF_INET;
@@ -71,6 +80,7 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
             address.sin_port = std::get<1>(user);
             socket.send_to(message, address);
           }
+          std::cout << "[" << message.time << "] ";
           std::cout << (message.with_name == 1 ? username + ": " : "");
           if (message.command == 1) std::cout << "\n";
           std::cout << message.text << "\n";
@@ -90,7 +100,7 @@ void thread_send (Socket& socket, std::exception_ptr& eptr) {
   quit = true;
 }
 
-void thread_recv (Socket& socket, std::exception_ptr& eptr) {
+void thread_recv (Socket& socket, History& history, std::exception_ptr& eptr) {
   //Bloqueamos las señales SIGTERM, SIGINT y SIGHUP
   sigset_t set;
   sigaddset(&set,SIGINT);
@@ -103,6 +113,9 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
   try {
     while (true) {
       message = socket.receive_from(dest_address);
+      { std::lock_guard<std::mutex> lock(history_semaphore);
+        history.add_message(message);
+      }
       if (server_mode) { //Si estas en modo servidor, aquellos que envien por primera vez el mensaje se deben insertar en el conjunto
         std::pair<uint32_t, in_port_t> user;
         std::get<0>(user) = message.ip;
@@ -122,6 +135,8 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
         }
         if (message.desc == 1) destination_adresses.erase(user);
       }
+      //Imprimiendo el mensaje
+      std::cout << "[" << message.time << "] ";
       if (message.with_name == 1) {
         std::cout << message.username << ": ";
         if (message.command == 1) std::cout << "\n";
@@ -139,7 +154,7 @@ void thread_recv (Socket& socket, std::exception_ptr& eptr) {
 }
 
 void usage (std::ostream& os) {
-  os << "Usage: [-h/--help] [-c ip/--client ip] [-s/--server] [-p port/--port port] [-u user]\n";
+  os << "Uso: [-h/--help] [-c ip/--client ip] [-s/--server] [-p port/--port port] [-u user/--username user]\n";
 }
 
 //------------------------------- MAIN -------------------------------//
@@ -150,8 +165,6 @@ int main (int argc, char* argv[]) {
   std::signal(SIGINT, &int_signal_handler); //Señal al pulsar Ctrl-C
   std::signal(SIGTERM, &int_signal_handler); //Señal al cerrar la terminal
   std::signal(SIGHUP, &int_signal_handler); //Señal al apagar PC
-
-  History history(username);
 
   try {
     std::exception_ptr eptr1 {};
@@ -208,17 +221,19 @@ int main (int argc, char* argv[]) {
       std::cout << "  -h / --help:\n";
       std::cout << "\tMuestra la ayuda de uso, tal y como ahora esta.\n\tEste comando prioriza sobre todos los demas.\n";
       std::cout << "  -c / --client:\n";
-      std::cout << "\tInicia el programa en modo cliente.\n\tSe debe especificar como argumento la IP a la que se quiere conectar o usar \"local\" como argumento si se desea una conexion local.";
+      std::cout << "\tInicia el programa en modo cliente.\n\tSe debe especificar como argumento la IP a la que se quiere conectar o usar \'l\' como argumento si se desea una conexion local.";
       std::cout << "\n\tSi no se especifica puerto de escucha (con la opcion 'p') se usara por defecto el puerto 8000\n";
       std::cout << "  -s / --server:\n";
-      std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p', el programa le asignara un puerto libre.\n";
+      std::cout << "\tInicia el programa en modo servidor. Si no se especifica puerto con la opcion '-p', el sistema operativo le asignara un puerto\n\tlibre y se le informara del puerto de escucha asignado.\n";
       std::cout << "  -p / --port:\n";
       std::cout << "\tCon este comando podemos indicar un puerto de conexion.\n\tSi no se especifica ninguna opcion de modo ('-s' o '-c') el programa por defecto iniciara en modo servidor.\n";
-      std::cout << "  -u:\n";
+      std::cout << "  -u / --username:\n";
       std::cout << "\tCon este comando podemos indicar un nombre de usuario.\n\tSi no se especifica este comando, por defecto se usara el nombre de usuario del sistema.\n";
       std::cout << "\n";
       return 0;
     }
+
+    History history(username);
 
     if (server_mode) {
       std::cout << "Iniciado en modo servidor.\n";
@@ -252,8 +267,8 @@ int main (int argc, char* argv[]) {
       socket.send_to(client_connection, dest_address); //Mandamos un mensaje para avisar de que se ha conectado un usuario
     }
 
-    std::thread send (&thread_send,std::ref(socket), std::ref(eptr1));
-    std::thread recv (&thread_recv,std::ref(socket), std::ref(eptr2));
+    std::thread send (&thread_send,std::ref(socket), std::ref(history), std::ref(eptr1));
+    std::thread recv (&thread_recv,std::ref(socket), std::ref(history), std::ref(eptr2));
 
     while(!quit); //Esperar a que algun hilo termine
 

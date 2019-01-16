@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <cstring> //Para std::strerror()
+#include <ctime>
 
 //Librerias para errores
 #include <exception>
@@ -20,12 +21,13 @@ struct Message {
   int command;
   int desc;
   char username[1024];
+  char time[30];
   uint32_t ip;
   in_port_t port;
   char text[32768];
 };
 
-Message create_message (const std::string text, const int desc, const std::string username, const uint32_t ip, const in_port_t port, const  int name = 1, const int command = 0);
+Message create_message (const std::string text, const int desc, const std::string username, const std::string time, const uint32_t ip, const in_port_t port, const  int name = 1, const int command = 0);
 
 std::string getIPAddress (void);
 

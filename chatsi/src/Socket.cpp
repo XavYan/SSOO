@@ -1,12 +1,13 @@
 #include "../include/Socket.hpp"
 
-Message create_message (const std::string text, const int desc, const std::string username, const uint32_t ip, const in_port_t port, const int name, const int command) {
+Message create_message (const std::string text, const int desc, const std::string username, const std::string time, const uint32_t ip, const in_port_t port, const int name, const int command) {
   Message message{};
   message.with_name = name;
   message.command = command;
   message.ip = ip;
   message.port = port;
   message.desc = desc;
+  strcpy(message.time, time.c_str());
   strcpy(message.username, username.c_str());
   strcpy(message.text, text.c_str());
   return message;
@@ -66,7 +67,7 @@ Socket::Socket (sockaddr_in& addr) {
     throw std::system_error(errno, std::system_category(), "no se pudo establecer conexión con el socket.");
   }
 
-  //Reasignamos addr los valores oficiales (en caso de que se hayan asignado IP y puerto "aleatorios")
+  //Reasignamos addr los valores oficiales (en caso de que se hayan asignado IP y puerto no controlados)
   socklen_t len = sizeof(addr);
   result = getsockname(fd_, reinterpret_cast<sockaddr*>(&addr), &len);
   if (result < 0) {
